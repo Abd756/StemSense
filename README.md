@@ -1,10 +1,12 @@
-# StemSense 🎵 | AI Audio Engine
+<h1 align="center">StemSense 🎵 | AI Audio Engine</h1>
 
 <p align="center">
   <img src="assets/hero.png" alt="StemSense Dashboard" width="800">
 </p>
 
-**StemSense** is a professional-grade, full-stack application that leverages industry-leading AI models to isolate audio stems (Vocals, Drums, Bass, Other) and perform deep musical analysis (BPM, Key, Loudness) on any song from YouTube.
+<p align="center">
+  <strong>StemSense</strong> is a professional-grade, full-stack application that leverages industry-leading AI models to isolate audio stems (Vocals, Drums, Bass, Other) and perform deep musical analysis (BPM, Key, Loudness) on any song from YouTube.
+</p>
 
 ---
 

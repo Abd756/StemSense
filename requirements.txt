@@ -6,3 +6,7 @@ soundfile
 librosa
 numpy
 scipy
+pyloudnorm
+fastapi
+uvicorn
+python-multipart

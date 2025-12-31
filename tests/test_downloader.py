@@ -1,40 +1,41 @@
-import pytest
 import os
-import shutil
+import sys
+import pytest
+
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from core.downloader import AudioDownloader
-from config import DOWNLOAD_DIR
 
-@pytest.fixture
-def downloader():
-    # Setup: Ensure clean download directory for testing
-    if os.path.exists(DOWNLOAD_DIR):
-        for filename in os.listdir(DOWNLOAD_DIR):
-            file_path = os.path.join(DOWNLOAD_DIR, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print(f'Failed to delete {file_path}. Reason: {e}')
+def test_yt_downloader_search():
+    """
+    Test the new yt-dlp based downloader with a search query.
+    """
+    downloader = AudioDownloader()
+    query = "Lofi Hip Hop Short Loop"
+    print(f"\nTesting Search: {query}")
+    file_path = downloader.download(query)
     
-    return AudioDownloader()
+    assert file_path is not None
+    assert os.path.exists(file_path)
+    assert file_path.endswith(".mp3")
+    print(f"Search Test Successful! File saved at: {file_path}")
 
-def test_download_by_name(downloader):
-    # Using a specific song name
-    query = "Ek Raat Vilen" 
+def test_yt_downloader_url():
+    """
+    Test the yt-dlp based downloader with a specific YouTube URL.
+    """
+    downloader = AudioDownloader()
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" # Never Gonna Give You Up
+    print(f"\nTesting URL: {url}")
+    file_path = downloader.download(url)
     
-    success = downloader.download(query)
-    
-    # Check if download was initiated successfully
-    assert success is True
-    
-    # Check if a file was actually created
-    downloaded_files = downloader.get_downloaded_files()
-    assert len(downloaded_files) > 0
-    
-    # Verify it is an audio file (typically .mp3 or .m4a depending on spotDL config)
-    extension = os.path.splitext(downloaded_files[0])[1]
-    assert extension in ['.mp3', '.m4a', '.wav']
-    
-    print(f"\nSuccessfully downloaded: {downloaded_files[0]}")
+    assert file_path is not None
+    assert os.path.exists(file_path)
+    assert file_path.endswith(".mp3")
+    print(f"URL Test Successful! File saved at: {file_path}")
+
+if __name__ == "__main__":
+    # You can run either or both
+    test_yt_downloader_search()
+    test_yt_downloader_url()

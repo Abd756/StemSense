@@ -1,43 +1,74 @@
 import subprocess
 import os
-import shutil
+import yt_dlp
 from config import DOWNLOAD_DIR
 
 class AudioDownloader:
     def __init__(self, output_dir=DOWNLOAD_DIR):
+        """
+        The AudioDownloader handles fetching high-quality audio from YouTube
+        using either a direct URL or a search query (Song Name).
+        """
         self.output_dir = output_dir
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
     def download(self, query: str):
         """
-        Download a track using a song name or YouTube URL via spotDL.
-        """
-        print(f"Starting download for: {query}")
+        Download high-quality MP3 audio from YouTube using yt-dlp.
         
-        # We use subprocess to call spotdl as it's the most reliable way to use it programmatically
-        # --output flag specifies the template for the filename
-        # {title} - {artist}.{ext} is the default
-        try:
-            command = [
-                "spotdl",
-                "download",
-                query,
-                "--output",
-                os.path.join(self.output_dir, "{title} - {artist}.{output-ext}"),
-                "--bitrate", "320k"
-            ]
+        Args:
+            query (str): YouTube URL or Song Name.
             
-            # Run without capture_output so user sees progress in terminal
-            result = subprocess.run(command, check=True)
-            print("Download completed successfully.")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"Error during download. spotDL returned exit code {e.returncode}")
-            return False
-        except FileNotFoundError:
-            print("Error: 'spotdl' command not found. Please ensure it is installed in your virtual environment.")
-            return False
+        Returns:
+            str: The absolute path to the downloaded audio file, or None if failed.
+        """
+        print(f"Searching and downloading: {query}")
+
+        # yt-dlp options for high quality audio extraction
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '320',
+            }],
+            # Search logic: if not a URL, search YouTube
+            'default_search': 'ytsearch',
+            # Output template: Title.mp3
+            'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
+            'quiet': False,
+            'no_warnings': True,
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Extract info and download
+                info = ydl.extract_info(query, download=True)
+                
+                # Handle both direct URLs and search results
+                if 'entries' in info:
+                    # Case: Search query
+                    video_info = info['entries'][0]
+                else:
+                    # Case: Direct URL
+                    video_info = info
+                
+                # Get the actual filename generated
+                # (Post-processors change extension to .mp3)
+                base_filename = ydl.prepare_filename(video_info)
+                final_filename = os.path.splitext(base_filename)[0] + ".mp3"
+                
+                if os.path.exists(final_filename):
+                    print(f"Download Finished: {final_filename}")
+                    return final_filename
+                else:
+                    print("Error: Post-processor failed to create MP3 file.")
+                    return None
+
+        except Exception as e:
+            print(f"Error during YouTube download: {e}")
+            return None
 
     def get_downloaded_files(self):
         """Return a list of files in the download directory."""

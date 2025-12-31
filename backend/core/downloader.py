@@ -37,6 +37,7 @@ class AudioDownloader:
             'default_search': 'ytsearch',
             # Output template: Title.mp3
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
+            'restrictfilenames': True,  # 🛡️ Prevents special chars like | or ｜ that break Demucs
             'quiet': False,
             'no_warnings': True,
         }

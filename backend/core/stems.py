@@ -11,22 +11,36 @@ class StemSeparator:
     def separate(self, audio_path: str):
         """
         Separate audio into stems (vocals, drums, bass, other) using Demucs.
-        
-        Note: This is computationally heavy.
+        Automatically detects and uses GPU (CUDA) if available.
         """
         if not os.path.exists(audio_path):
             print(f"Error: Audio file not found at {audio_path}")
             return None
 
+        # Detect Device (GPU vs CPU)
+        device = "cpu"
+        try:
+            import torch
+            if torch.cuda.is_available():
+                device = "cuda"
+                print("🚀 CUDA GPU detected! Using GPU for high-speed separation.")
+            else:
+                print("💻 GPU not detected or not supported. Falling back to CPU.")
+        except ImportError:
+            print("📦 Torch not found. Defaulting to CPU.")
+
         print(f"Starting stem separation for: {audio_path}")
-        print("This may take a while (especially on CPU)...")
+        if device == "cpu":
+            print("⚠️ Running on CPU - this may take several minutes...")
 
         try:
             # -n htdemucs: Use the hybrid transformer model (highest quality)
+            # -d: Specify device (cuda or cpu)
             # --out: Specifies the output directory
             command = [
                 "demucs",
                 "-n", "htdemucs",
+                "-d", device,
                 "--out", self.output_dir,
                 audio_path
             ]

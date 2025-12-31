@@ -1,76 +1,108 @@
-# 🎵 StemSense
+# StemSense 🎵 | AI Audio Engine
 
-**StemSense** is a high-performance AI-powered tool designed to deconstruct audio tracks into their fundamental components. Using state-of-the-art machine learning models, it allows users to download any track from YouTube (via URL or Search), isolate individual instruments (stems), and perform deep musical analysis.
-
----
-
-## ✨ Features
-
--   **🔍 Smart Search & Download**: Input a song name or a YouTube URL to fetch high-quality audio automatically.
--   **✂️ AI Stem Separation**: Powered by **Demucs**, it splits audio into 4 distinct tracks:
-    -   Vocals
-    -   Drums
-    -   Bass
-    -   Other (Melodies/Synths)
--   **📊 Musical Analytics**: 
-    -   BPM Detection
-    -   Musical Key Identification
-    -   Integrated Loudness (LUFS) Analysis
--   **📦 Pro Packaging**: Automatically bundles the original track, isolated stems, and a comprehensive `metadata.json` into a single, organized ZIP file.
+**StemSense** is a professional-grade, full-stack application that leverages industry-leading AI models to isolate audio stems (Vocals, Drums, Bass, Other) and perform deep musical analysis (BPM, Key, Loudness) on any song from YouTube.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Key Features & AI Technology
+
+### 1. 🤖 AI Stem Separation
+*   **Model**: **Demucs** (v4) by Meta (Facebook) Research.
+*   **Architecture**: Uses the **Hybrid Transformer (htdemucs)** model for state-of-the-art vocal and instrumental isolation without quality loss.
+*   **Performance**: Automatically detects and uses **NVIDIA CUDA GPU** for high-speed processing.
+
+### 2. 📥 Smart Audio Downloader
+*   **Library**: **yt-dlp**.
+*   **Functionality**: Extracts high-quality 320kbps MP3 audio from any YouTube URL or search query. Implements filename sanitization to ensure compatibility with AI models.
+
+### 3. 📊 Clinical Audio Analysis
+*   **Musical Data**: **Librosa** is used to accurately detect the song's **Tempo (BPM)** and **Musical Key** (e.g., C Minor).
+*   **Loudness**: **pyloudnorm** is utilized to calculate professional-standard **Integrated LUFS** (Loudness Units Full Scale).
+
+---
+
+## 🛠️ Project Stack
+
+| **Component** | **Technology** |
+| :--- | :--- |
+| **Frontend** | Next.js (App Router), TypeScript, Tailwind CSS, Framer Motion |
+| **Backend** | Python 3.10+, FastAPI, Uvicorn (Asynchronous Processing) |
+| **API Bridge** | Axios, ngrok (for public tunneling) |
+| **Automation** | Python BackgroundTasks |
+
+---
+
+## ⚙️ Installation & Setup
 
 ### Prerequisites
--   **Python 3.9+**
--   **FFmpeg** (Required for audio processing)
--   **CUDA GPU** (Optional, but highly recommended for faster stem separation)
+*   [Python 3.10+](https://www.python.org/downloads/)
+*   [Node.js (LTS)](https://nodejs.org/)
+*   [ffmpeg](https://ffmpeg.org/download.html) (Essential for audio processing)
 
-### Installation
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Abd756/EchoBase.git
-    cd StemSense
-    ```
+### 1. Backend Setup
+```powershell
+# Navigate to project root
+cd e:\Projects\Spotify_Project
 
-2.  **Set up Virtual Environment**:
-    ```bash
-    python -m venv venv
-    ./venv/Scripts/activate  # On Windows
-    ```
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
 
-3.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+# Install dependencies
+pip install -r backend/requirements.txt
 
-### Usage
-Run the backend:
-```bash
-python api.py
+# (Optional) For high-speed GPU processing
+pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
+```
+
+### 2. Frontend Setup
+```powershell
+cd frontend
+npm install
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## 🏃‍♂️ Running the Project
 
--   **Language**: Python 3
--   **API**: FastAPI
--   **Audio Download**: `yt-dlp`
--   **ML Separation**: `Demucs` (Meta AI)
--   **Audio Analysis**: `Librosa`
--   **Packaging**: `zipfile` (Standard Python)
+You will need **two separate terminals** running at the same time:
+
+### **Terminal 1: The Engine (Backend)**
+```powershell
+# From project root
+python backend/api.py
+```
+*Wait for: `Uvicorn running on http://0.0.0.0:8000`*
+
+### **Terminal 2: The Interface (Frontend)**
+```powershell
+# From project root
+cd frontend
+npm run dev
+```
+*Open [http://localhost:3000](http://localhost:3000) in your browser.*
 
 ---
 
 ## 📂 Project Structure
-
--   `core/`: The engine rooms of the application.
--   `data/`: Temporary storage for processing files (ignored by Git).
--   `tests/`: Verification suites for each module.
+```text
+Spotify_Project/
+├── backend/            # Python API & AI Core
+│   ├── core/           # Demucs, yt-dlp, and Librosa logic
+│   ├── data/           # Processed MP3s and Zip Exports
+│   └── api.py          # FastAPI Server
+├── frontend/           # Next.js Application
+│   ├── src/app         # UI Components and Layout
+│   └── src/lib/api.ts  # Connection to Backend
+└── README.md           # You are here
+```
 
 ---
 
-## 📄 License
-MIT License. Explore and build with freedom.
+## 📝 Usage Guide
+1.  Launch both **Backend** and **Frontend**.
+2.  Paste a **YouTube Link** or type a **Song Name** (e.g., "The Weeknd Blinding Lights").
+3.  Watch the **Processing Pipeline** animate through steps: Download ➔ Separate ➔ Analyze ➔ Package.
+4.  Once complete, click the **Download Stems** button to receive a ZIP containing your high-quality files and metadata.
+
+---
+*Built with ❤️ for Music Producers and AI Enthusiasts.*

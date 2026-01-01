@@ -9,25 +9,28 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Create a working directory and a non-root user (Required by HF)
+# 3. Setup working directory
+WORKDIR /app
+
+# 4. Create a non-root user
 RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
 
-WORKDIR $HOME/app
+# 5. Create necessary data directories (as root) and fix permissions
+RUN mkdir -p data/downloads data/stems data/exports && \
+    chown -R user:user /app
 
-# 4. Copy requirements and install
-COPY --chown=user requirements.txt .
+# 6. Copy requirements and install (as root for global pip, or user)
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# 5. Copy the rest of your application
+# 7. Switch to non-root user for security
+USER user
+ENV PATH="/home/user/.local/bin:${PATH}"
+
+# 8. Copy the rest of your application and ensure ownership
 COPY --chown=user . .
 
-# 6. Create necessary data directories with permissions
-RUN mkdir -p data/downloads data/stems data/exports
-
-# 7. Expose the port (Cloud Run uses 8080 by default)
+# 9. Expose the port
 EXPOSE 8080
 
 # 8. Start the FastAPI server

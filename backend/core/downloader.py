@@ -25,7 +25,7 @@ class AudioDownloader:
         """
         print(f"Searching and downloading: {query}")
 
-        # yt-dlp options for high quality audio extraction
+        # yt-dlp options for high quality audio extraction with Anti-Bot measures
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -33,14 +33,20 @@ class AudioDownloader:
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
             }],
-            # Search logic: if not a URL, search YouTube
             'default_search': 'ytsearch',
-            # Output template: Title.mp3
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
-            'restrictfilenames': True,  # 🛡️ Prevents special chars like | or ｜ that break Demucs
-            'noplaylist': True,         # 🚫 Prevents downloading entire playlists/mixes
+            'restrictfilenames': True,
+            'noplaylist': True,
             'quiet': False,
             'no_warnings': True,
+            # 🆕 Anti-Bot/Cloud Settings
+            'http_chunk_size': 1048576,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web'],
+                    'skip': ['dash', 'hls']
+                }
+            }
         }
 
         try:
@@ -57,7 +63,6 @@ class AudioDownloader:
                     video_info = info
                 
                 # Get the actual filename generated
-                # (Post-processors change extension to .mp3)
                 base_filename = ydl.prepare_filename(video_info)
                 final_filename = os.path.splitext(base_filename)[0] + ".mp3"
                 

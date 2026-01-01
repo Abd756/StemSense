@@ -287,7 +287,8 @@ export default function Home() {
                                  status === 'downloading' ? '25%' : 
                                  status === 'separating' ? '55%' : 
                                  status === 'analyzing' ? '75%' : 
-                                 status === 'packaging' ? '90%' : '100%'
+                                 status === 'packaging' ? '90%' : 
+                                 status === 'completed' ? '100%' : '0%'
                         }}
                         transition={{ type: 'spring', stiffness: 50, damping: 20 }}
                       >

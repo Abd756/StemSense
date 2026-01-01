@@ -1,0 +1,31 @@
+steps:
+  # 1. Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/ai-task-appoinments/stemsense-backend', '.']
+    dir: 'backend'  # Run this command inside the 'backend' folder
+
+  # 2. Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/ai-task-appoinments/stemsense-backend']
+
+  # 3. Deploy container to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'stemsense-api'
+      - '--image'
+      - 'gcr.io/ai-task-appoinments/stemsense-backend'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '4Gi'     # Increased memory for Demucs
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/ai-task-appoinments/stemsense-backend'

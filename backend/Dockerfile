@@ -1,5 +1,7 @@
-# 1. Use an official Python runtime with a good base
 FROM python:3.10-slim
+
+# 1.5. Prevent Python from buffering stdout/stderr (Instant logs in Cloud Run)
+ENV PYTHONUNBUFFERED=1
 
 # 2. Install system dependencies (ESSENTIAL for audio)
 RUN apt-get update && apt-get install -y \

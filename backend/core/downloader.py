@@ -37,16 +37,10 @@ class AudioDownloader:
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
             'restrictfilenames': True,
             'noplaylist': True,
+            # 🛡️ Higher compatibility settings
             'quiet': False,
             'no_warnings': True,
-            # 🆕 Anti-Bot/Cloud Settings
             'http_chunk_size': 1048576,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web'],
-                    'skip': ['dash', 'hls']
-                }
-            }
         }
 
         # 🍪 Check for cookies.txt (The 100% fix for Bot Detection)

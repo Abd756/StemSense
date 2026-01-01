@@ -29,3 +29,6 @@ steps:
 
 images:
   - 'gcr.io/ai-task-appoinments/stemsense-backend'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -49,6 +49,15 @@ class AudioDownloader:
             }
         }
 
+        # 🍪 Check for cookies.txt (The 100% fix for Bot Detection)
+        # We look in the same directory as this script (core/) or the backend root
+        cookie_path = os.path.join(os.getcwd(), 'cookies.txt')
+        if os.path.exists(cookie_path):
+            print(f"🍪 Found cookies.txt at {cookie_path}! Using it to bypass bot detection.")
+            ydl_opts['cookiefile'] = cookie_path
+        else:
+            print("⚠️ No cookies.txt found. YouTube might block this request on Cloud IPs.")
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Extract info and download

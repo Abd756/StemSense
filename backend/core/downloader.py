@@ -38,6 +38,7 @@ class AudioDownloader:
             # Output template: Title.mp3
             'outtmpl': os.path.join(self.output_dir, '%(title)s.%(ext)s'),
             'restrictfilenames': True,  # 🛡️ Prevents special chars like | or ｜ that break Demucs
+            'noplaylist': True,         # 🚫 Prevents downloading entire playlists/mixes
             'quiet': False,
             'no_warnings': True,
         }

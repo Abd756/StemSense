@@ -22,15 +22,16 @@ app = FastAPI(
 )
 
 # 🛡️ CORS Middleware (Gateway) configuration
-# This allows our Next.js frontend (port 3000) to talk to this API (port 8000)
+# This allows our Next.js frontend to talk to this API
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    os.getenv("FRONTEND_URL", ""), # Dynamic URL for deployed frontend
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[origin for origin in origins if origin],
     allow_credentials=True,
     allow_methods=["*"], # Allow all methods (GET, POST, etc.)
     allow_headers=["*"], # Allow all headers

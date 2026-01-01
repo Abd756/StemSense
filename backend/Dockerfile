@@ -25,9 +25,9 @@ COPY --chown=user . .
 # 6. Create necessary data directories with permissions
 RUN mkdir -p data/downloads data/stems data/exports
 
-# 7. Expose the port FastAPI runs on
-EXPOSE 7860
+# 7. Expose the port (Cloud Run uses 8080 by default)
+EXPOSE 8080
 
 # 8. Start the FastAPI server
-# Note: HF Spaces uses port 7860 by default
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "7860"]
+# Using the --port flag with $PORT ensures Cloud Run compatibility
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8080}"]

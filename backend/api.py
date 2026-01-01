@@ -23,18 +23,24 @@ app = FastAPI(
 
 # 🛡️ CORS Middleware (Gateway) configuration
 # This allows our Next.js frontend to talk to this API
+frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
+
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    os.getenv("FRONTEND_URL", ""), # Dynamic URL for deployed frontend
+    frontend_url,
 ]
+
+# Ensure we don't have empty strings and help with debugging
+active_origins = [o for o in origins if o]
+print(f"✅ API active and allowing requests from: {active_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin for origin in origins if origin],
+    allow_origins=active_origins,
     allow_credentials=True,
-    allow_methods=["*"], # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # In-memory storage for task statuses (In a real app, use Redis or a DB)

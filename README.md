@@ -58,6 +58,10 @@ pip install -r backend/requirements.txt
 
 # (Optional) For high-speed GPU processing
 pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
+
+# 🛡️ Firebase Credentials (Required for Firestore access)
+# Set your service account key path (Replace with your actual path)
+$env:GOOGLE_APPLICATION_CREDENTIALS="E:\gcp-key.json"
 ```
 
 ### 2. Frontend Setup
@@ -75,9 +79,10 @@ You will need **two separate terminals** running at the same time:
 ### **Terminal 1: The Engine (Backend)**
 ```powershell
 # From project root
+$env:GOOGLE_APPLICATION_CREDENTIALS="E:\gcp-key.json"
 python backend/api.py
 ```
-*Wait for: `Uvicorn running on http://0.0.0.0:8000`*
+*Wait for: `Uvicorn running on http://0.0.0.0:8080`*
 
 ### **Terminal 2: The Interface (Frontend)**
 ```powershell

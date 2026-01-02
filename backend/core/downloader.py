@@ -71,6 +71,23 @@ class AudioDownloader:
                 
                 if os.path.exists(final_filename):
                     print(f"Download Finished: {final_filename}")
+                    
+                    # 🚀 NEW: Upload to Google Cloud Storage
+                    try:
+                        from google.cloud import storage
+                        from config import GCS_BUCKET_NAME
+                        
+                        client = storage.Client()
+                        bucket = client.bucket(GCS_BUCKET_NAME)
+                        blob_name = f"downloads/{os.path.basename(final_filename)}"
+                        blob = bucket.blob(blob_name)
+                        
+                        print(f"📦 Uploading to GCS: gs://{GCS_BUCKET_NAME}/{blob_name}...")
+                        blob.upload_from_filename(final_filename)
+                        print("✅ GCS Upload Complete!")
+                    except Exception as gcs_err:
+                        print(f"⚠️ GCS Upload failed (but local download succeeded): {gcs_err}")
+                        
                     return final_filename
                 else:
                     print("Error: Post-processor failed to create MP3 file.")

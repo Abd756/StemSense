@@ -25,6 +25,9 @@ steps:
       - '8080'
       - '--memory'
       - '4Gi'     # Increased memory for Demucs
+      - '--cpu'
+      - '2'       # Dual core for faster AI processing
+      - '--no-cpu-throttling' # Key for background workers
       - '--allow-unauthenticated'
 
 images:

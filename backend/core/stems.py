@@ -14,8 +14,27 @@ class StemSeparator:
         Automatically detects and uses GPU (CUDA) if available.
         """
         if not os.path.exists(audio_path):
-            print(f"Error: Audio file not found at {audio_path}")
-            return None
+            print(f"⚠️ Audio file not found at {audio_path}. Attempting to recover from GCS...")
+            try:
+                from google.cloud import storage
+                from config import GCS_BUCKET_NAME
+                
+                client = storage.Client()
+                bucket = client.bucket(GCS_BUCKET_NAME)
+                blob_name = f"downloads/{os.path.basename(audio_path)}"
+                blob = bucket.blob(blob_name)
+                
+                if blob.exists():
+                    print(f"🔄 Recovering from GCS: gs://{GCS_BUCKET_NAME}/{blob_name}...")
+                    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                    blob.download_to_filename(audio_path)
+                    print("✅ Recovery successful!")
+                else:
+                    print(f"❌ File not found in GCS: {blob_name}")
+                    return None
+            except Exception as e:
+                print(f"❌ Recovery failed: {e}")
+                return None
 
         # Detect Device (GPU vs CPU)
         device = "cpu"

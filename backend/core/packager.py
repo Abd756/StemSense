@@ -62,6 +62,23 @@ class Packager:
                 os.remove(metadata_path)
 
             print(f"Package created successfully: {zip_path}")
+            
+            # 🚀 NEW: Upload the final package to GCS
+            try:
+                from google.cloud import storage
+                from config import GCS_BUCKET_NAME
+                
+                client = storage.Client()
+                bucket = client.bucket(GCS_BUCKET_NAME)
+                blob_name = f"exports/{os.path.basename(zip_path)}"
+                blob = bucket.blob(blob_name)
+                
+                print(f"📦 Archiving ZIP to GCS: gs://{GCS_BUCKET_NAME}/{blob_name}...")
+                blob.upload_from_filename(zip_path)
+                print("✅ GCS Archive Complete!")
+            except Exception as gcs_err:
+                print(f"⚠️ GCS Archive failed: {gcs_err}")
+
             return zip_path
 
         except Exception as e:

@@ -43,8 +43,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for task statuses (In a real app, use Redis or a DB)
-tasks = {}
+# Persistent storage for task statuses using Google Cloud Firestore
+from google.cloud import firestore
+db = firestore.Client()
+TASKS_COLLECTION = "stemsense_tasks"
 
 class ProcessRequest(BaseModel):
     input: str
@@ -58,7 +60,8 @@ class TaskStatus(BaseModel):
 
 # Helper function to run the heavy processing in the background
 def run_full_workflow(task_id: str, query: str):
-    tasks[task_id]["status"] = "downloading"
+    # Set status to downloading in Firestore
+    db.collection(TASKS_COLLECTION).document(task_id).update({"status": "downloading"})
     
     downloader = AudioDownloader()
     separator = StemSeparator()
@@ -69,26 +72,30 @@ def run_full_workflow(task_id: str, query: str):
         # 1. Download
         audio_path = downloader.download(query)
         if not audio_path:
-            tasks[task_id]["status"] = "failed"
-            tasks[task_id]["error"] = "Download failed"
+            db.collection(TASKS_COLLECTION).document(task_id).update({
+                "status": "failed",
+                "error": "Download failed"
+            })
             return
 
         track_name = os.path.splitext(os.path.basename(audio_path))[0]
         
         # 2. Separate
-        tasks[task_id]["status"] = "separating"
+        db.collection(TASKS_COLLECTION).document(task_id).update({"status": "separating"})
         stems_dir = separator.separate(audio_path)
         if not stems_dir:
-            tasks[task_id]["status"] = "failed"
-            tasks[task_id]["error"] = "Stem separation failed"
+            db.collection(TASKS_COLLECTION).document(task_id).update({
+                "status": "failed",
+                "error": "Stem separation failed"
+            })
             return
 
         # 3. Analyze
-        tasks[task_id]["status"] = "analyzing"
+        db.collection(TASKS_COLLECTION).document(task_id).update({"status": "analyzing"})
         analysis_results = analyzer.analyze(audio_path)
 
         # 4. Package
-        tasks[task_id]["status"] = "packaging"
+        db.collection(TASKS_COLLECTION).document(task_id).update({"status": "packaging"})
         zip_path = packager.create_package(
             track_name=track_name,
             original_file=audio_path,
@@ -97,15 +104,21 @@ def run_full_workflow(task_id: str, query: str):
         )
 
         if zip_path:
-            tasks[task_id]["status"] = "completed"
-            tasks[task_id]["result_file"] = os.path.basename(zip_path)
+            db.collection(TASKS_COLLECTION).document(task_id).update({
+                "status": "completed",
+                "result_file": os.path.basename(zip_path)
+            })
         else:
-            tasks[task_id]["status"] = "failed"
-            tasks[task_id]["error"] = "Packaging failed"
+            db.collection(TASKS_COLLECTION).document(task_id).update({
+                "status": "failed",
+                "error": "Packaging failed"
+            })
 
     except Exception as e:
-        tasks[task_id]["status"] = "failed"
-        tasks[task_id]["error"] = str(e)
+        db.collection(TASKS_COLLECTION).document(task_id).update({
+            "status": "failed",
+            "error": str(e)
+        })
 
 @app.get("/")
 async def root():
@@ -117,13 +130,16 @@ async def process_audio(background_tasks: BackgroundTasks, input: str = Form(...
     Submit a song name or YouTube URL for processing via Form Data.
     """
     task_id = str(uuid.uuid4())
-    tasks[task_id] = {
+    task_data = {
         "task_id": task_id,
         "status": "queued",
         "result_file": None,
         "error": None,
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+    
+    # Save to Firestore
+    db.collection(TASKS_COLLECTION).document(task_id).set(task_data)
     
     # Start the background task
     background_tasks.add_task(run_full_workflow, task_id, input)
@@ -133,11 +149,15 @@ async def process_audio(background_tasks: BackgroundTasks, input: str = Form(...
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
 async def get_status(task_id: str):
     """
-    Check the status of a processing task.
+    Check the status of a processing task from Firestore.
     """
-    if task_id not in tasks:
+    doc_ref = db.collection(TASKS_COLLECTION).document(task_id)
+    doc = doc_ref.get()
+    
+    if not doc.exists:
         raise HTTPException(status_code=404, detail="Task not found")
-    return tasks[task_id]
+    
+    return doc.to_dict()
 
 @app.get("/download/{filename}")
 async def download_file(filename: str):

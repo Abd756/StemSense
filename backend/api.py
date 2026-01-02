@@ -16,8 +16,9 @@ from core.packager import Packager
 from config import EXPORT_DIR
 from google.cloud import storage
 import google.auth
-from google.auth.transport import requests as google_requests
-from google.auth import iam
+from google.oauth2 import service_account
+import json
+import os
 from config import GCS_BUCKET_NAME
 from datetime import timedelta
 
@@ -268,24 +269,19 @@ async def download_file(filename: str):
     Uses IAM Signer for Cloud Run compatibility.
     """
     try:
-        # 1. Authenticate and setup signer
-        credentials, project_id = google.auth.default()
-        service_account_email = None
+        # 1. Load credentials from Secret Env Var (Robust Fix)
+        sa_key_json = os.environ.get("GCP_SA_KEY")
+        
+        if sa_key_json:
+            # ✅ Production: Use the injected JSON key from Secret Manager
+            info = json.loads(sa_key_json)
+            credentials = service_account.Credentials.from_service_account_info(info)
+        else:
+            # ⚠️ Fallback: Try default (will fail for signing on Cloud Run without IAM Signer)
+            print("⚠️ GCP_SA_KEY not found. Falling back to default credentials.")
+            credentials, _ = google.auth.default()
 
-        # Check if we are on Cloud Run (no private key)
-        if hasattr(credentials, "service_account_email"):
-            # Refresh to ensure we have the email and token
-            request = google_requests.Request()
-            credentials.refresh(request)
-            service_account_email = credentials.service_account_email
-            
-            # Use IAM Signer (REQUIRES 'Service Account Token Creator' Role)
-            signer = iam.Signer(request, credentials, service_account_email)
-            # 🛑 Monkey-patch the credentials with the signer's method
-            # This allows generate_signed_url to use the IAM API remotely
-            credentials.sign_bytes = signer.sign
-
-        # 2. Initialize Client WITH patched credentials
+        # 2. Initialize Client with these powerful credentials
         storage_client = storage.Client(credentials=credentials)
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
         blob = bucket.blob(f"exports/{filename}")
@@ -293,22 +289,18 @@ async def download_file(filename: str):
         if not blob.exists():
             raise HTTPException(status_code=404, detail="File not found in Cloud Storage")
 
-        # 3. Generate a signed URL
+        # 3. Generate a signed URL (Standard Method)
+        # Since 'credentials' now has a private key, this works natively!
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=15),
             method="GET",
-            service_account_email=service_account_email,
-            # signer=signer  <-- REMOVED (Not supported as arg in older libs)
         )
         
         return RedirectResponse(url=url)
 
     except Exception as e:
         print(f"Error generating signed URL: {e}")
-        # Log the specific error to help debugging
-        if "403" in str(e) or "Permission denied" in str(e):
-             print("💡 HINT: Ensure Service Account has 'Service Account Token Creator' role.")
         raise HTTPException(status_code=500, detail="Could not generate download link")
 
 if __name__ == "__main__":

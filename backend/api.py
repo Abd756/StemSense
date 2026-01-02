@@ -244,6 +244,9 @@ async def download_file(filename: str):
             
             # Use IAM Signer (REQUIRES 'Service Account Token Creator' Role)
             signer = iam.Signer(request, credentials, service_account_email)
+            # 🛑 Monkey-patch the credentials with the signer's method
+            # This allows generate_signed_url to use the IAM API remotely
+            credentials.sign_bytes = signer.sign
 
         # Generate a signed URL
         url = blob.generate_signed_url(
@@ -251,7 +254,7 @@ async def download_file(filename: str):
             expiration=timedelta(minutes=15),
             method="GET",
             service_account_email=service_account_email,
-            signer=signer # Uses local key if None, or IAM API if provided
+            # signer=signer  <-- REMOVED (Not supported as arg)
         )
         
         return RedirectResponse(url=url)

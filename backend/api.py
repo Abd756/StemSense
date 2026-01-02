@@ -166,9 +166,54 @@ async def process_audio(background_tasks: BackgroundTasks, input: str = Form(...
     """
     Submit a song name or YouTube URL for processing via Form Data.
     """
+    # 🔍 CACHE CHECK
+    # Check if we already processed this exact input successfully
+    try:
+        docs = db.collection(TASKS_COLLECTION)\
+            .where("input", "==", input)\
+            .where("status", "==", "completed")\
+            .order_by("created_at", direction=firestore.Query.DESCENDING)\
+            .limit(1)\
+            .stream()
+        
+        cached_doc = next(docs, None)
+        
+        if cached_doc:
+            data = cached_doc.to_dict()
+            result_file = data.get("result_file")
+            
+            # Verify the file actually still exists in GCS
+            # (We reuse the credentials logic if needed, or simple check if we trust the record)
+            # For speed, we'll assume if it's recent it's there, but let's be safe:
+            storage_client = storage.Client() # Uses Cloud Run default creds
+            bucket = storage_client.bucket(GCS_BUCKET_NAME)
+            blob = bucket.blob(f"exports/{result_file}")
+            
+            if blob.exists():
+                print(f"🚀 CACHE HIT for: {input}")
+                # Create a specific task for this user session that is INSTANTLY completed
+                task_id = str(uuid.uuid4())
+                task_data = {
+                    "task_id": task_id,
+                    "input": input, # Save input for future cache hits
+                    "status": "completed",
+                    "result_file": result_file,
+                    "error": None,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "is_cached": True
+                }
+                db.collection(TASKS_COLLECTION).document(task_id).set(task_data)
+                return {"task_id": task_id, "message": "Result found in cache! 🚀"}
+                
+    except Exception as e:
+        print(f"⚠️ Cache check failed: {e}")
+        # Continue to normal processing if cache check fails
+
+    # Normal Processing
     task_id = str(uuid.uuid4())
     task_data = {
         "task_id": task_id,
+        "input": input, # Save input!
         "status": "queued",
         "result_file": None,
         "error": None,
@@ -223,16 +268,9 @@ async def download_file(filename: str):
     Uses IAM Signer for Cloud Run compatibility.
     """
     try:
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(GCS_BUCKET_NAME)
-        blob = bucket.blob(f"exports/{filename}")
-
-        if not blob.exists():
-            raise HTTPException(status_code=404, detail="File not found in Cloud Storage")
-
-        # Authenticate and setup signer
+    try:
+        # 1. Authenticate and setup signer
         credentials, project_id = google.auth.default()
-        signer = None
         service_account_email = None
 
         # Check if we are on Cloud Run (no private key)
@@ -248,13 +286,21 @@ async def download_file(filename: str):
             # This allows generate_signed_url to use the IAM API remotely
             credentials.sign_bytes = signer.sign
 
-        # Generate a signed URL
+        # 2. Initialize Client WITH patched credentials
+        storage_client = storage.Client(credentials=credentials)
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(f"exports/{filename}")
+
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="File not found in Cloud Storage")
+
+        # 3. Generate a signed URL
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=15),
             method="GET",
             service_account_email=service_account_email,
-            # signer=signer  <-- REMOVED (Not supported as arg)
+            # signer=signer  <-- REMOVED (Not supported as arg in older libs)
         )
         
         return RedirectResponse(url=url)

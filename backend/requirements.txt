@@ -3,6 +3,8 @@ pytest
 yt-dlp
 demucs
 soundfile
+torch==2.3.1
+torchaudio==2.3.1
 librosa
 numpy
 scipy

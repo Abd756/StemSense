@@ -159,20 +159,36 @@ async def get_status(task_id: str):
     
     return doc.to_dict()
 
+from fastapi.responses import RedirectResponse
+from google.cloud import storage
+from config import GCS_BUCKET_NAME
+from datetime import timedelta
+
 @app.get("/download/{filename}")
 async def download_file(filename: str):
     """
-    Download a completed ZIP package.
+    Generate a Signed URL for the GCS file and redirect the user to it.
     """
-    file_path = os.path.join(EXPORT_DIR, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    return FileResponse(
-        path=file_path,
-        filename=filename,
-        media_type='application/zip'
-    )
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(f"exports/{filename}")
+
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="File not found in Cloud Storage")
+
+        # Generate a signed URL that expires in 15 minutes
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(minutes=15),
+            method="GET",
+        )
+        
+        return RedirectResponse(url=url)
+
+    except Exception as e:
+        print(f"Error generating signed URL: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate download link")
 
 if __name__ == "__main__":
     import uvicorn

@@ -32,6 +32,23 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 📥 Load session from Local Storage on mount
+  useEffect(() => {
+    const savedTaskId = localStorage.getItem('stemsense_current_task');
+    if (savedTaskId) {
+      console.log('🔄 Restoring session for task:', savedTaskId);
+      setTaskId(savedTaskId);
+      setStatus('queued'); // Optimistic status, polling will correct it
+    }
+  }, []);
+
+  // 💾 Save session when taskId changes
+  useEffect(() => {
+    if (taskId) {
+      localStorage.setItem('stemsense_current_task', taskId);
+    }
+  }, [taskId]);
+
   // Polling logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -40,17 +57,26 @@ export default function Home() {
       interval = setInterval(async () => {
         try {
           const data = await getTaskStatus(taskId);
-          console.log('Task Status Update:', data); // 🛠️ Debug log for tracking status
+          console.log('Task Status Update:', data);
           setStatus(data.status);
+
           if (data.status === 'completed') {
             setResultFile(data.result_file);
+            localStorage.removeItem('stemsense_current_task'); // 🧹 Clear session
             clearInterval(interval);
           } else if (data.status === 'failed') {
             setError(data.error || 'Processing failed');
+            localStorage.removeItem('stemsense_current_task'); // 🧹 Clear session
             clearInterval(interval);
           }
         } catch (err) {
           console.error('Polling error:', err);
+          // If 404, maybe the task is truly gone or expired
+          if ((err as any)?.response?.status === 404) {
+             setError("Task expired or not found");
+             setStatus("failed");
+             localStorage.removeItem('stemsense_current_task');
+          }
         }
       }, 3000);
     }

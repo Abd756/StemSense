@@ -1,6 +1,6 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -14,6 +14,10 @@ from core.stems import StemSeparator
 from core.analyzer import AudioAnalyzer
 from core.packager import Packager
 from config import EXPORT_DIR
+from google.cloud import storage
+from config import GCS_BUCKET_NAME
+from datetime import timedelta
+
 
 app = FastAPI(
     title="StemSense API",
@@ -59,8 +63,19 @@ class TaskStatus(BaseModel):
     error: Optional[str] = None
     created_at: str
 
+# Helper to check if task was cancelled
+def is_cancelled(task_id: str) -> bool:
+    doc = db.collection(TASKS_COLLECTION).document(task_id).get()
+    if doc.exists and doc.to_dict().get("status") == "cancelled":
+        print(f"🛑 Task {task_id} was cancelled by user. Stopping.")
+        return True
+    return False
+
 # Helper function to run the heavy processing in the background
 def run_full_workflow(task_id: str, query: str):
+    # 🛑 CHECKPOINT 1: Start
+    if is_cancelled(task_id): return
+
     # Set status to downloading in Firestore
     db.collection(TASKS_COLLECTION).document(task_id).update({"status": "downloading"})
     
@@ -70,6 +85,9 @@ def run_full_workflow(task_id: str, query: str):
     packager = Packager()
 
     try:
+        # 🛑 CHECKPOINT 2: Before Download
+        if is_cancelled(task_id): return
+
         # 1. Download
         audio_path = downloader.download(query)
         if not audio_path:
@@ -81,6 +99,9 @@ def run_full_workflow(task_id: str, query: str):
 
         track_name = os.path.splitext(os.path.basename(audio_path))[0]
         
+        # 🛑 CHECKPOINT 3: Before Separation (Expensive!)
+        if is_cancelled(task_id): return
+
         # 2. Separate
         db.collection(TASKS_COLLECTION).document(task_id).update({"status": "separating"})
         stems_dir = separator.separate(audio_path)
@@ -91,9 +112,15 @@ def run_full_workflow(task_id: str, query: str):
             })
             return
 
+        # 🛑 CHECKPOINT 4: Before Analysis
+        if is_cancelled(task_id): return
+
         # 3. Analyze
         db.collection(TASKS_COLLECTION).document(task_id).update({"status": "analyzing"})
         analysis_results = analyzer.analyze(audio_path)
+
+        # 🛑 CHECKPOINT 5: Before Packaging
+        if is_cancelled(task_id): return
 
         # 4. Package
         db.collection(TASKS_COLLECTION).document(task_id).update({"status": "packaging"})
@@ -103,6 +130,9 @@ def run_full_workflow(task_id: str, query: str):
             stems_dir=stems_dir,
             analysis_data=analysis_results or {"note": "analysis failed"}
         )
+
+        # 🛑 CHECKPOINT 6: Final check before marking complete
+        if is_cancelled(task_id): return
 
         if zip_path:
             db.collection(TASKS_COLLECTION).document(task_id).update({
@@ -116,6 +146,9 @@ def run_full_workflow(task_id: str, query: str):
             })
 
     except Exception as e:
+        # One last check to see if we failed BECAUSE of a purposeful cancel
+        if is_cancelled(task_id): return
+        
         db.collection(TASKS_COLLECTION).document(task_id).update({
             "status": "failed",
             "error": str(e)
@@ -147,6 +180,25 @@ async def process_audio(background_tasks: BackgroundTasks, input: str = Form(...
     
     return {"task_id": task_id, "message": "Job submitted successfully"}
 
+@app.post("/cancel/{task_id}")
+async def cancel_task(task_id: str):
+    """
+    Cancel an ongoing task.
+    """
+    doc_ref = db.collection(TASKS_COLLECTION).document(task_id)
+    doc = doc_ref.get()
+    
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    current_status = doc.to_dict().get("status")
+    if current_status in ["completed", "failed", "cancelled"]:
+        return {"message": "Task already finished or cancelled"}
+        
+    # Mark as cancelled
+    doc_ref.update({"status": "cancelled"})
+    return {"message": "Task cancellation requested"}
+
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
 async def get_status(task_id: str):
     """
@@ -160,10 +212,6 @@ async def get_status(task_id: str):
     
     return doc.to_dict()
 
-from fastapi.responses import RedirectResponse
-from google.cloud import storage
-from config import GCS_BUCKET_NAME
-from datetime import timedelta
 
 @app.get("/download/{filename}")
 async def download_file(filename: str):

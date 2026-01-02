@@ -13,9 +13,10 @@ import {
   CheckCircle2, 
   XCircle,
   Loader2,
-  Waves
+  Waves,
+  XOctagon
 } from 'lucide-react';
-import { submitTask, getTaskStatus, getDownloadUrl } from '@/lib/api';
+import { submitTask, getTaskStatus, getDownloadUrl, cancelTask } from '@/lib/api';
 
 const STEPS = [
   { id: 'downloading', label: 'Downloading', icon: Download },
@@ -53,7 +54,7 @@ export default function Home() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (taskId && (status !== 'completed' && status !== 'failed')) {
+    if (taskId && (status !== 'completed' && status !== 'failed') && status !== 'cancelled') {
       interval = setInterval(async () => {
         try {
           const data = await getTaskStatus(taskId);
@@ -66,6 +67,10 @@ export default function Home() {
             clearInterval(interval);
           } else if (data.status === 'failed') {
             setError(data.error || 'Processing failed');
+            localStorage.removeItem('stemsense_current_task'); // 🧹 Clear session
+            clearInterval(interval);
+          } else if (data.status === 'cancelled') {
+            setError('Task was cancelled by user');
             localStorage.removeItem('stemsense_current_task'); // 🧹 Clear session
             clearInterval(interval);
           }
@@ -105,12 +110,25 @@ export default function Home() {
     }
   };
 
+  const handleCancel = async () => {
+      if (!taskId) return;
+      try {
+          await cancelTask(taskId);
+          setStatus('cancelled');
+          setError('Task cancelled');
+          localStorage.removeItem('stemsense_current_task');
+      } catch (err) {
+          console.error('Failed to cancel task', err);
+      }
+  };
+
   const getStepStatus = (stepId: string) => {
     const statusOrder = ['queued', 'downloading', 'separating', 'analyzing', 'packaging', 'completed'];
     const currentIndex = statusOrder.indexOf(status);
     const stepIndex = statusOrder.indexOf(stepId);
 
     if (status === 'failed') return 'failed';
+    if (status === 'cancelled') return 'failed'; // Reuse failed visual state
     if (status === 'completed') return 'completed';
     if (currentIndex > stepIndex) return 'completed';
     if (currentIndex === stepIndex) return 'current';
@@ -118,7 +136,7 @@ export default function Home() {
   };
 
   // 🔒 Interaction Lock: explicit check for any active processing state
-  const isProcessing = isLoading || (status !== 'idle' && status !== 'completed' && status !== 'failed');
+  const isProcessing = isLoading || (status !== 'idle' && status !== 'completed' && status !== 'failed' && status !== 'cancelled');
 
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center justify-center bg-[#0a0a0b] text-white">
@@ -187,10 +205,10 @@ export default function Home() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="glass rounded-3xl p-8 mb-8"
             >
-              {status === 'failed' ? (
+              {status === 'failed' || status === 'cancelled' ? (
                 <div className="flex flex-col items-center gap-4 text-center">
                   <XCircle size={48} className="text-red-500" />
-                  <h3 className="text-xl font-bold">Processing Failed</h3>
+                  <h3 className="text-xl font-bold">{status === 'cancelled' ? 'Task Cancelled' : 'Processing Failed'}</h3>
                   <p className="text-zinc-400">{error}</p>
                   <button 
                     onClick={() => setStatus('idle')}
@@ -233,9 +251,15 @@ export default function Home() {
                 <div className="space-y-8">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-zinc-300">Processing Pipeline</h3>
-                    <span className="text-sm px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 animate-pulse uppercase tracking-wider font-bold">
-                      {status}...
-                    </span>
+                   
+                    {/* Cancellation Button */}
+                    <button 
+                         onClick={handleCancel}
+                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-bold uppercase tracking-wider transition-colors"
+                    >
+                        <XOctagon size={14} />
+                        Stop Processing
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

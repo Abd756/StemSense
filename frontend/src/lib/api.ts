@@ -21,3 +21,8 @@ export const getTaskStatus = async (taskId: string) => {
 export const getDownloadUrl = (filename: string) => {
     return `${NEXT_PUBLIC_API_URL}/download/${filename}`;
 };
+
+export const cancelTask = async (taskId: string) => {
+    const response = await api.post(`/cancel/${taskId}`);
+    return response.data;
+};

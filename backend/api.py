@@ -268,7 +268,6 @@ async def download_file(filename: str):
     Uses IAM Signer for Cloud Run compatibility.
     """
     try:
-    try:
         # 1. Authenticate and setup signer
         credentials, project_id = google.auth.default()
         service_account_email = None

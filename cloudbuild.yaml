@@ -29,7 +29,7 @@ steps:
       - '2'       # Dual core for faster AI processing
       - '--no-cpu-throttling' # Key for background workers
       - '--allow-unauthenticated'
-      - '--timeout=${_TIMEOUT}'
+      - '--timeout=600s'
       
       # 🔐 Inject Service Account Key from Secret Manager
       - '--set-secrets=GCP_SA_KEY=stemsense-sa-key:latest'

@@ -117,6 +117,9 @@ export default function Home() {
     return 'pending';
   };
 
+  // 🔒 Interaction Lock: explicit check for any active processing state
+  const isProcessing = isLoading || (status !== 'idle' && status !== 'completed' && status !== 'failed');
+
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center justify-center bg-[#0a0a0b] text-white">
       {/* Background Decoration */}
@@ -159,14 +162,14 @@ export default function Home() {
             <input 
               type="text" 
               placeholder="Paste YouTube URL or type song name..."
-              className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-lg placeholder:text-zinc-600"
+              className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-lg placeholder:text-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              disabled={status !== 'idle' && status !== 'completed' && status !== 'failed'}
+              disabled={isProcessing}
             />
             <button 
               type="submit"
-              disabled={isLoading || (status !== 'idle' && status !== 'completed' && status !== 'failed')}
+              disabled={isProcessing}
               className="px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Music size={20} />}

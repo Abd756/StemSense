@@ -28,6 +28,7 @@ frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://stemvibe.vercel.app",
     frontend_url,
 ]
 

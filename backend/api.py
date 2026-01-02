@@ -15,6 +15,9 @@ from core.analyzer import AudioAnalyzer
 from core.packager import Packager
 from config import EXPORT_DIR
 from google.cloud import storage
+import google.auth
+from google.auth.transport import requests as google_requests
+from google.auth import iam
 from config import GCS_BUCKET_NAME
 from datetime import timedelta
 

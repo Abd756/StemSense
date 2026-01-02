@@ -217,6 +217,7 @@ async def get_status(task_id: str):
 async def download_file(filename: str):
     """
     Generate a Signed URL for the GCS file and redirect the user to it.
+    Uses IAM Signer for Cloud Run compatibility.
     """
     try:
         storage_client = storage.Client()
@@ -226,17 +227,37 @@ async def download_file(filename: str):
         if not blob.exists():
             raise HTTPException(status_code=404, detail="File not found in Cloud Storage")
 
-        # Generate a signed URL that expires in 15 minutes
+        # Authenticate and setup signer
+        credentials, project_id = google.auth.default()
+        signer = None
+        service_account_email = None
+
+        # Check if we are on Cloud Run (no private key)
+        if hasattr(credentials, "service_account_email"):
+            # Refresh to ensure we have the email and token
+            request = google_requests.Request()
+            credentials.refresh(request)
+            service_account_email = credentials.service_account_email
+            
+            # Use IAM Signer (REQUIRES 'Service Account Token Creator' Role)
+            signer = iam.Signer(request, credentials, service_account_email)
+
+        # Generate a signed URL
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=15),
             method="GET",
+            service_account_email=service_account_email,
+            signer=signer # Uses local key if None, or IAM API if provided
         )
         
         return RedirectResponse(url=url)
 
     except Exception as e:
         print(f"Error generating signed URL: {e}")
+        # Log the specific error to help debugging
+        if "403" in str(e) or "Permission denied" in str(e):
+             print("💡 HINT: Ensure Service Account has 'Service Account Token Creator' role.")
         raise HTTPException(status_code=500, detail="Could not generate download link")
 
 if __name__ == "__main__":

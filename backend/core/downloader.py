@@ -41,12 +41,24 @@ class AudioDownloader:
             'quiet': False,
             'no_warnings': True,
             'http_chunk_size': 1048576,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
         }
 
         # 🍪 Check for cookies.txt (The 100% fix for Bot Detection)
-        # We look in the same directory as this script (core/) or the backend root
-        cookie_path = os.path.join(os.getcwd(), 'cookies.txt')
-        if os.path.exists(cookie_path):
+        # We check potential locations: root, backend/, or same dir as this script
+        possible_cookie_paths = [
+            os.path.join(os.getcwd(), 'cookies.txt'),
+            os.path.join(os.getcwd(), 'backend', 'cookies.txt'),
+            os.path.join(os.path.dirname(__file__), '..', 'cookies.txt'), # backend/cookies.txt relative to core/downloader.py
+        ]
+
+        cookie_path = None
+        for path in possible_cookie_paths:
+            if os.path.exists(path):
+                cookie_path = path
+                break
+
+        if cookie_path:
             print(f"🍪 Found cookies.txt at {cookie_path}! Using it to bypass bot detection.")
             ydl_opts['cookiefile'] = cookie_path
         else:

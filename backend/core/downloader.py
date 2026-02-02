@@ -41,16 +41,7 @@ class AudioDownloader:
             'quiet': False,
             'no_warnings': True,
             'http_chunk_size': 1048576,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-            # 🚀 Fix for "fragment not found" and bot detection
-            'hls_prefer_native': False,  # Force FFmpeg for HLS downloads (more robust)
-            'referer': 'https://www.youtube.com/',
-            'nocheckcertificate': True,
-            'geo_bypass': True,
-            'source_address': '0.0.0.0', # Force IPv4 to avoid Cloud Run IPv6 issues
-            'fragment_retries': 10,      # Retry fragments if they fail
-            'retry_sleep_functions': {'fragment': lambda n: 5}, # Sleep 5s between fragment retries
-            'skip_unavailable_fragments': True, # Skip fragments that fail after retries
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
         }
 
         # 🍪 Check for cookies.txt (The 100% fix for Bot Detection)
@@ -71,8 +62,7 @@ class AudioDownloader:
             print(f"🍪 Found cookies.txt at {cookie_path}! Using it to bypass bot detection.")
             ydl_opts['cookiefile'] = cookie_path
         else:
-            print(f"⚠️ No cookies.txt found in search paths: {possible_cookie_paths}")
-            print("YouTube might block this request on Cloud IPs.")
+            print("⚠️ No cookies.txt found. YouTube might block this request on Cloud IPs.")
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
